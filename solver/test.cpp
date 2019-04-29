@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cmath>
-#include "../inc/Poly.h"
+#include "Poly.h"
 
 
 struct Func {

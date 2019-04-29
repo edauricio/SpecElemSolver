@@ -1,7 +1,7 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
-#include "../inc/Poly.h"
+#include "Poly.h"
 
 
 Points::Points(const Points& p) : quantity(p.quantity), usage(p.usage), points(p.points) {
