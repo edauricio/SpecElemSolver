@@ -11,7 +11,6 @@ DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 _OBJ = poly.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-SRC = $(patsubst %,$(SRCDIR)/%,$(_SRC))
 
 MAIN = test
 EXEC = test
@@ -22,10 +21,10 @@ main: check $(OBJ) $(MAIN)
 check:
 	@mkdir -p -- $(ODIR)
 
-$(MAIN): $(DEPS)
+$(MAIN): % : %.cpp $(DEPS)
 	$(CC) -c $@.cpp -o $(ODIR)/$@.o -I$(IDIR)
 
-$(ODIR)/%.o: $(DEPS)
+$(ODIR)/%.o: $(SRCDIR)/%.cpp $(DEPS)
 	$(CC) -c $(@:$(ODIR)/%.o=$(SRCDIR)/%.cpp) -o $@ -I$(IDIR)
 
 .PHONY: clean
