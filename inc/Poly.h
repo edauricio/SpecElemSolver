@@ -37,8 +37,8 @@ public:
   // Constructors
   Tensor() {};
   explicit Tensor(size_t qt) : quantity(qt), usage(new size_t(1)), points(new double[quantity]), hasNew(true) {};
-  Tensor(const Tensor&);
-  Tensor(Tensor&&);
+  Tensor(const Tensor&); // Copy constructor
+  Tensor(Tensor&&); // Move constructor
 
   // Destructors
   virtual ~Tensor();
@@ -140,6 +140,7 @@ protected:
 
 class Jacobian : public BasePoly {
   friend class GLL;
+  friend class Modal;
 
 public:
   // Constructors
@@ -265,11 +266,12 @@ public:
   explicit BaseQuadType(size_t np) : Q(np) {};
 
   virtual Tensor& zeros(Tensor&) = 0;
+  virtual Vector zeros() = 0;
   virtual Tensor& weights(Tensor&, Tensor&) = 0;
   virtual Tensor& derivm(Tensor&, Tensor&) = 0;
   virtual std::string type() = 0;
   void setQ(size_t np) { Q = np; }
-
+  size_t size() { return Q; }
 protected:
   int Q;
 };
@@ -278,6 +280,7 @@ class GLL : public BaseQuadType {
 public:
   explicit GLL(size_t np) : BaseQuadType(np), polyj(Q-2) {};
   virtual Tensor& zeros(Tensor&);
+  virtual Vector zeros();
   virtual Tensor& weights(Tensor&, Tensor&);
   virtual Tensor& derivm(Tensor&, Tensor&);
   virtual std::string type() { return std::string("Gauss-Lobatto-Legendre"); }
@@ -371,20 +374,6 @@ protected:
   Matrix dmp;
 
   virtual void init() { Quad.zeros(zp); Quad.derivm(zp, dmp); }
-};
-
-template <size_t N>
-class ExpBasis {
-public:
-  // Types
-  typedef Vector::iterator iterator;
-
-  // Constructors
-  
-
-
-private:
-
 };
 
 

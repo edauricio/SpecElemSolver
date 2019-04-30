@@ -172,6 +172,15 @@ Tensor& GLL::zeros(Tensor& zp) {
   return zp;
 }
 
+Vector GLL::zeros() {
+  Vector zp(Q);
+  zp(0) = -1.0; zp(Q-1) = 1.0;
+  polyj.reset(Q-2, 1, 1);
+  size_t i = 1;
+  for (auto it = polyj.zbegin(); it != polyj.zend(); ++it) zp(i++) = *it;
+  return zp;
+}
+
 Tensor& GLL::weights(Tensor& zp, Tensor &wp) {
   auto iz = zp.begin();
   for (auto iw = wp.begin(); iw != wp.end(); ++iw) {

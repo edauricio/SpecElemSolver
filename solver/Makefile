@@ -5,10 +5,10 @@ CGLAFS = -I$(IDIR)
 ODIR = ../obj
 SRCDIR = ../src
 
-_DEPS = Poly.h
+_DEPS = Poly.h Galerkin.h Fem.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = poly.o
+_OBJ = poly.o galerkin.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
