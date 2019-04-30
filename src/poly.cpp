@@ -4,16 +4,23 @@
 #include "Poly.h"
 
 
-Tensor::Tensor(const Tensor& p) : quantity(p.quantity), usage(p.usage), points(p.points) {
+Tensor::Tensor(const Tensor& p) : quantity(p.quantity), usage(p.usage), points(p.points), hasNew(p.hasNew) {
   (*usage)++;
 }
 
+Tensor::Tensor(Tensor&& p) : quantity(p.quantity), usage(p.usage), points(p.points), hasNew(p.hasNew) {
+  p.quantity = 0;
+  p.usage = nullptr;
+  p.points = nullptr;
+  p.hasNew = false;
+}
+
 Tensor::~Tensor() {
-  (*usage)--;
-  if (!(*usage)) {
+  if (usage) (*usage)--;
+  if (usage && *usage == 0) {
     if (hasNew) delete[] points;
+    delete usage;
   }
-  delete usage;
 }
 
 Tensor& Tensor::operator=(Tensor& rhs) {
@@ -34,11 +41,32 @@ Tensor& Tensor::operator=(Tensor& rhs) {
   hasNew = rhs.hasNew;
 }
 
+Tensor& Tensor::operator=(Tensor&& rhs) {
+  // Decrease counter for LHS
+  (*usage)--;
+  if (!(*usage)) {
+    if (hasNew) delete[] points;
+    delete usage;
+  }
+
+  // Adjust LHS pointers accordingly
+  quantity = rhs.quantity;
+  usage = rhs.usage;
+  points = rhs.points;
+  hasNew = rhs.hasNew;
+
+  rhs.quantity = 0;
+  rhs.usage = nullptr;
+  rhs.points = nullptr;
+  rhs.hasNew = false;
+}
+
 void Vector::resize(size_t ni, size_t nj) {
   if ((*usage) > 1) throw std::out_of_range("Can't resize a shared Vector object.");
   if (nj) throw std::out_of_range("wrong number of arguments for Vector resizing");
   if (hasNew) delete[] points;
   quantity = ni; 
+  n = ni;
   points = new double[quantity];
   hasNew = true;
 }
@@ -46,7 +74,8 @@ void Vector::resize(size_t ni, size_t nj) {
 void Matrix::resize(size_t ni, size_t nj) {
   if ((*usage) > 1) throw std::out_of_range("Can't resize a shared Matrix object.");
   if (hasNew) delete[] points; 
-  quantity = ni*nj; 
+  quantity = ni*nj;
+  n = ni; m = nj;
   points = new double[quantity];
   hasNew = true;
 }

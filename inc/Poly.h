@@ -38,6 +38,7 @@ public:
   Tensor() {};
   explicit Tensor(size_t qt) : quantity(qt), usage(new size_t(1)), points(new double[quantity]), hasNew(true) {};
   Tensor(const Tensor&);
+  Tensor(Tensor&&);
 
   // Destructors
   virtual ~Tensor();
@@ -53,7 +54,9 @@ public:
   void free();
 
   // Overloaded operators
-  Tensor& operator=(Tensor&);
+  Tensor& operator=(Tensor&); // Copy-assignmet operator
+  Tensor& operator=(Tensor&&); // Move-assignment operator
+
   virtual double& operator()(size_t = 0, size_t = 0, size_t = 0) {};
 
 protected:
@@ -352,7 +355,7 @@ public:
   // Member functions
   Matrix& matrix() { return dmp; }
   virtual std::string type() { return Quad.type(); }
-  virtual Derivative& setQ(size_t np) { if (np != Q) { Q = np; zp.resize(Q); dmp.resize(Q); init(); } return *this; }
+  virtual Derivative& setQ(size_t np) { if (np != Q) { Q = np; Quad.setQ(Q); zp.resize(Q); dmp.resize(Q); init(); } return *this; }
 
   // Iterators
   virtual iterator zbegin() { return zp.begin(); }
@@ -369,6 +372,21 @@ protected:
 
   virtual void init() { Quad.zeros(zp); Quad.derivm(zp, dmp); }
 };
+
+template <size_t N>
+class ExpBasis {
+public:
+  // Types
+  typedef Vector::iterator iterator;
+
+  // Constructors
+  
+
+
+private:
+
+};
+
 
 template <typename T, typename F>
 double Integrate(Integral<T> &quad, F &func, std::initializer_list<double> ilb = {-1, 1}) {
@@ -393,7 +411,6 @@ double Integrate(Integral<T> &quad, F &func, std::initializer_list<double> ilb =
   return J*I;
 }
 
-// WRONG DERIVATIVE FOR MAPPED FUNCTIONS
 template <typename T, typename F>
 Vector Derivate(Derivative<T> &deriv, F &func, std::initializer_list<double> ilb = {-1, 1}) {
   Vector fd(deriv.size());
@@ -418,7 +435,6 @@ Vector Derivate(Derivative<T> &deriv, F &func, std::initializer_list<double> ilb
       sum += (*dm++)*func(z(j));
 
     *f++ = (1./J)*sum;
-    std::cout << *(f-1) << "\n";
     sum = 0.0;
   }
 
