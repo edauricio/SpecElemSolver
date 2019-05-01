@@ -1,3 +1,5 @@
+#include "Tensor.h"
+
 class Element {
 public:
 	// Constructors
@@ -17,7 +19,7 @@ protected:
 class Line : public Element {
 public:
 	// Types
-	typedef Matrix PrincFuncStruct;
+	typedef TensorClass::Tensor<2> PrincFuncStruct;
 
 	// Constructor
 	Line() : Element(2, 1, 0) {};

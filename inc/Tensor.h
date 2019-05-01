@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <iterator>
 
+namespace TensorClass {
+
 template <typename T>
 class Iterator : public std::iterator<std::random_access_iterator_tag, T> {
 public:
@@ -52,7 +54,7 @@ public:
 
   // Member functions
   int rank() const { return N; }
-  int size(size_t) const;
+  int size(size_t = 0) const; // Return size of i-th dimension
   bool isEmpty() const { return (!nval); }
   bool isSquare() const { if (N != 2) throw std::out_of_range("isSquare() available only for matrix (rank 2 tensor)"); return (dim[0] == dim[1]); }
   void clear(); // Free memory used by Tensor and restore it to "null state"
@@ -102,11 +104,11 @@ private:
   template <typename I>
   void get_ind(I);
 
-  template <typename I>
-  void get_ind(I, I);
+  template <typename I, typename J>
+  void get_ind(I, J);
 
-  template <typename I, typename... Rest>
-  void get_ind(I, I, Rest...);
+  template <typename I, typename J, typename... Rest>
+  void get_ind(I, J, Rest...);
 
   template <typename I>
   void get_mult(I);
@@ -189,14 +191,14 @@ void Tensor<N>::type_check(C c, Rest... r) {
 template <size_t N>
 template <typename D>
 void Tensor<N>::fill_dim(size_t *p, D d1) {
-  if (!d1) throw std::out_of_range("Tensor can't have a dimension with 0 elements");
+  //if (!d1) throw std::out_of_range("Tensor can't have a dimension with 0 elements");
   *p = d1;
 }
 
 template <size_t N>
 template <typename D, typename... Rest>
 void Tensor<N>::fill_dim(size_t *p, D d1, Rest... drest) {
-  if (!d1) throw std::out_of_range("Tensor can't have a dimension with 0 elements");
+  //if (!d1) throw std::out_of_range("Tensor can't have a dimension with 0 elements");
   *p = d1;
   fill_dim(p+1, drest...);
 }
@@ -282,7 +284,7 @@ Tensor<N>& Tensor<N>::operator=(Tensor&& rhs) {
 
 template <size_t N>
 template <typename... As>
-double &Tensor<N>::operator()(As... is) {
+double& Tensor<N>::operator()(As... is) {
   if (!nval) throw std::out_of_range("trying to access empty Tensor");
   // Checking indices number and types
   if (sizeof...(is) != N) throw std::out_of_range("element access denied: incorrect number of indices for tensor of rank N");
@@ -314,14 +316,14 @@ void Tensor<N>::get_ind(I i) {
 }
 
 template <size_t N>
-template <typename I>
-void Tensor<N>::get_ind(I i, I j) {
+template <typename I, typename J>
+void Tensor<N>::get_ind(I i, J j) {
   elind += i*dim[1] + j;
 }
 
 template <size_t N>
-template <typename I, typename... Rest>
-void Tensor<N>::get_ind(I i, I j, Rest... r){
+template <typename I, typename J, typename... Rest>
+void Tensor<N>::get_ind(I i, J j, Rest... r){
   get_mult(r...);
   get_ind(i, j);
 }
@@ -393,5 +395,7 @@ bool Tensor<N>::check_resize(size_t *d, S sz, Rest... r) {
   if (check_resize(d+1, r...)) return true;
   return false;
 }
+
+} // end of TensorClass namespace
 
 #endif

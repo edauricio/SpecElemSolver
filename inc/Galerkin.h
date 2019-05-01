@@ -1,6 +1,7 @@
 #ifndef GALERKIN_H
 #define GALERKIN_H
 
+#include "Tensor.h"
 #include "Poly.h"
 #include "Fem.h"
 
@@ -18,7 +19,7 @@ public:
   // Member functions
   size_t size() { return P; }
   void setP(size_t ord) { P = ord; }
-  virtual BasePrincFType& construct(Vector, Tensor&) = 0;
+  virtual BasePrincFType& construct(TensorClass::Tensor<1>, TensorClass::Tensor<2>&) = 0;
 
   // Overloaded operators
 
@@ -31,13 +32,13 @@ protected:
 class Modal : public BasePrincFType {
 public:
   // Types
-  typedef Vector::iterator iterator;
+  typedef TensorClass::Iterator<double>::iterator iterator;
 
   // Constructors
   Modal(size_t ord) : BasePrincFType(ord), polyj(ord, 1, 1) {};
 
   // Member functions
-  virtual Modal& construct(Vector, Tensor&);
+  virtual Modal& construct(TensorClass::Tensor<1>, TensorClass::Tensor<2>&);
 
 private:
   Jacobian polyj;
@@ -88,7 +89,7 @@ template <class T, class Q, class E>
 class ExpBasis {
 public:
   // Types
-  typedef Vector::iterator iterator;
+  typedef TensorClass::Iterator<double>::iterator iterator;
   typedef T exp_type;
   typedef Q quad_type;
   typedef E element_type;
@@ -110,7 +111,7 @@ private:
   T exp;
   Q quad;
   E elem;
-  Matrix em;
+  TensorClass::Tensor<2> em;
 };
 
 #endif

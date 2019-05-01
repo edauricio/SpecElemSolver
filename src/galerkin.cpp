@@ -1,7 +1,9 @@
 #include "Galerkin.h"
 
-Modal& Modal::construct(Vector zp, Tensor& pm) {
-  if (pm.rsize() != P+1) throw std::out_of_range("size of expansion basis matrix and P doest not match");
+using namespace TensorClass;
+
+Modal& Modal::construct(Tensor<1> zp, Tensor<2>& pm) {
+  if (pm.size(0) != P+1) throw std::out_of_range("size of expansion basis matrix and P doest not match");
   for (size_t i = 0; i != zp.size(); ++i)
     pm(0,i) = 0.5*(1. - zp(i));
 

@@ -3,35 +3,30 @@
 #include <map>
 #include <type_traits>
 #include "Tensor.h"
-//#include "Poly.h"
-//#include "Galerkin.h"
+#include "Poly.h"
+#include "Galerkin.h"
+
+using namespace TensorClass;
 
 
 #define PI 3.14159265358979323846
 
-Tensor<2> test(Tensor<2>& a) {
-  a.resize(2, 2);
-  return a;
+double func(double x) {
+  return pow(x, 7);
 }
 
 
 int main() {
 
+  int Q = 20;
+  Derivative<GLL> dev(Q);
+  Tensor<1> zeros = dev.zeros();
+  Tensor<1> fe = Derivate(dev, func, {2, 10});
+  auto ir = zeros.begin();
+  auto it = fe.begin();
+  for (int i = 0; i != Q; ++i)
+    std::cout << -(1- *ir++) + 5*(1+*ir) << "\t" << *it++ << "\n";
 
-  //PrincFunc<Modal, GLL, Line> aa(3,5);
-  Tensor<2> vec(5,4);
-
-      for (int i = 0; i != 5; ++i)
-        for (int j = 0; j != 4; ++j)
-          vec(i,j);
-        vec.resize(10,10);
-
-  Tensor<2> vec2;
-  vec2.resize(2,2);
-  vec2(1,1);
-  std::cout << vec2.size(0) << "\t" << vec2.size(1) << "\n";
-  vec2.resize(5,5);
-  std::cout << vec2.size(0) << "\t" << vec2.size(1) << "\n";
 
   
   return 0;

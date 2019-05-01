@@ -1,112 +1,10 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include "Tensor.h"
 #include "Poly.h"
 
-
-Tensor::Tensor(const Tensor& p) : quantity(p.quantity), usage(p.usage), points(p.points), hasNew(p.hasNew) {
-  (*usage)++;
-}
-
-Tensor::Tensor(Tensor&& p) : quantity(p.quantity), usage(p.usage), points(p.points), hasNew(p.hasNew) {
-  p.quantity = 0;
-  p.usage = nullptr;
-  p.points = nullptr;
-  p.hasNew = false;
-}
-
-Tensor::~Tensor() {
-  if (usage) (*usage)--;
-  if (usage && *usage == 0) {
-    if (hasNew) delete[] points;
-    delete usage;
-  }
-}
-
-Tensor& Tensor::operator=(Tensor& rhs) {
-  // Increase counter for RHS
-  (*(rhs.usage))++;
-
-  // Decrease counter for LHS (this operation order is safe for self-assignment)
-  (*usage)--;
-  if (!(*usage)) {
-    if (hasNew) delete[] points;
-    delete usage;
-  }
-
-  // Adjust LHS pointers accordingly
-  quantity = rhs.quantity;
-  usage = rhs.usage;
-  points = rhs.points;
-  hasNew = rhs.hasNew;
-}
-
-Tensor& Tensor::operator=(Tensor&& rhs) {
-  // Decrease counter for LHS
-  (*usage)--;
-  if (!(*usage)) {
-    if (hasNew) delete[] points;
-    delete usage;
-  }
-
-  // Adjust LHS pointers accordingly
-  quantity = rhs.quantity;
-  usage = rhs.usage;
-  points = rhs.points;
-  hasNew = rhs.hasNew;
-
-  rhs.quantity = 0;
-  rhs.usage = nullptr;
-  rhs.points = nullptr;
-  rhs.hasNew = false;
-}
-
-void Vector::resize(size_t ni, size_t nj) {
-  if ((*usage) > 1) throw std::out_of_range("Can't resize a shared Vector object.");
-  if (nj) throw std::out_of_range("wrong number of arguments for Vector resizing");
-  if (hasNew) delete[] points;
-  quantity = ni; 
-  n = ni;
-  points = new double[quantity];
-  hasNew = true;
-}
-
-void Matrix::resize(size_t ni, size_t nj) {
-  if ((*usage) > 1) throw std::out_of_range("Can't resize a shared Matrix object.");
-  if (hasNew) delete[] points; 
-  quantity = ni*nj;
-  n = ni; m = nj;
-  points = new double[quantity];
-  hasNew = true;
-}
-
-void Tensor::free() {
-  if ((*usage) > 1) throw std::out_of_range("Can't free a shared Tensor object.");
-  if (!hasNew) return;
-  delete[] points;
-  quantity = 0;
-  hasNew = false;
-}
-
-bool Tensor::check_range(size_t i) {
-  if (i < quantity) return true;
-  throw std::out_of_range("index out of points range");
-}
-
-
-double& Vector::operator()(size_t i, size_t j, size_t k) {
-  if (j || k) throw std::out_of_range("wrong number of subscript arguments for Vector element access");
-  check_range(i);
-  return *(points+i);
-}
-
-double& Matrix::operator()(size_t i, size_t j, size_t k) {
-  if (k) throw std::out_of_range("wrong number of subscript arguments for Matrix element access");
-  size_t ind = i*m + j;
-  check_range(ind);
-  return *(points+ind);
-}
-
+using namespace TensorClass;
 
 double Jacobian::JacP(const size_t& n, const double& alpha, const double& beta, const double& x) {
   if (n < 0 ) return 0.0;
@@ -125,7 +23,7 @@ double Jacobian::dJacP(const size_t& n, const double& alpha, const double& beta,
   return 0.5*(n + alpha + beta + 1.0)*JacP(n-1, alpha+1., beta+1., x);
 }
 
-Tensor& Jacobian::JacPZ(const size_t &n, const double &alpha , const double &beta, Tensor &zeros) {
+Tensor<1>& Jacobian::JacPZ(const size_t &n, const double &alpha , const double &beta, Tensor<1> &zeros) {
   double r=0., s, delta, tol = 1e-9;
   int i;
   for (int k = 0; k != n; ++k) {
@@ -164,7 +62,7 @@ void Jacobian::clear_n_zeros(bool ordChange) {
   JacPZ(P, Alpha, Beta, zeros);
 }
 
-Tensor& GLL::zeros(Tensor& zp) {
+Tensor<1>& GLL::zeros(Tensor<1>& zp) {
   zp(0) = -1.0; zp(Q-1) = 1.0;
   polyj.reset(Q-2, 1, 1);
   size_t i = 1;
@@ -172,8 +70,8 @@ Tensor& GLL::zeros(Tensor& zp) {
   return zp;
 }
 
-Vector GLL::zeros() {
-  Vector zp(Q);
+Tensor<1> GLL::zeros() {
+  Tensor<1> zp(Q);
   zp(0) = -1.0; zp(Q-1) = 1.0;
   polyj.reset(Q-2, 1, 1);
   size_t i = 1;
@@ -181,7 +79,7 @@ Vector GLL::zeros() {
   return zp;
 }
 
-Tensor& GLL::weights(Tensor& zp, Tensor &wp) {
+Tensor<1>& GLL::weights(Tensor<1>& zp, Tensor<1> &wp) {
   auto iz = zp.begin();
   for (auto iw = wp.begin(); iw != wp.end(); ++iw) {
     *iw = 2./(Q*(Q-1)*std::pow(polyj.JacP(Q-1, 0, 0, *iz++), 2));
@@ -189,19 +87,19 @@ Tensor& GLL::weights(Tensor& zp, Tensor &wp) {
   return wp;
 }
 
-Tensor& GLL::derivm(Tensor& zp, Tensor& dmp) {
+Tensor<2>& GLL::derivm(Tensor<1>& zp, Tensor<2>& dmp) {
   dmp(0,0) = -Q*(Q-1)*0.25;
-  for (size_t i = 0; i != dmp.rsize(); ++i) {
-    for (size_t j = 0; j != dmp.csize(); ++j) {
+  for (size_t i = 0; i != dmp.size(0); ++i) {
+    for (size_t j = 0; j != dmp.size(1); ++j) {
       if (i != j)
         dmp(i,j) = (polyj.JacP(Q-1, 0, 0, zp(i))/polyj.JacP(Q-1, 0, 0, zp(j)))*(1./(zp(i) - zp(j)));
     }
   }
-  for (size_t i = 1; i != dmp.rsize()-1; ++i) {
+  for (size_t i = 1; i != dmp.size(0)-1; ++i) {
     dmp(i,i) = 0.0;
   }
 
-  dmp(dmp.rsize()-1,dmp.csize()-1) = Q*(Q-1)*0.25;
+  dmp(dmp.size(0)-1,dmp.size(1)-1) = Q*(Q-1)*0.25;
 
   return dmp;
 }
