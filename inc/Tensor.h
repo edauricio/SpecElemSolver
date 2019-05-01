@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <cstddef>
 #include <stdexcept>
-#include <iostream>
 #include <iterator>
 
 template <typename T>
@@ -53,11 +52,17 @@ public:
 
   // Member functions
   int rank() const { return N; }
-  bool empty() const { return (!nval); }
+  int size(size_t) const;
+  bool isEmpty() const { return (!nval); }
+  bool isSquare() const { if (N != 2) throw std::out_of_range("isSquare() available only for matrix (rank 2 tensor)"); return (dim[0] == dim[1]); }
+  void clear(); // Free memory used by Tensor and restore it to "null state"
+
+  template <typename... Szs>
+  Tensor& resize(Szs...);
 
   // Element access operations
   template <typename... As>
-  double &operator()(As...);
+  double& operator()(As...);
 
   // Overloaded operators
   Tensor& operator=(const Tensor&); // Copy-assignment operator
@@ -76,13 +81,13 @@ private:
 
   bool check_range(size_t); // Function to check index range for element access
 
-  /* Member functions to check compatibility of constructor arguments type */
+  /* Member functions to check compatibility of arguments type */
   template <typename C>
   void type_check(C);
 
   template <typename C, typename... Rest>
   void type_check(C, Rest...);
-  /* ------- END OF C'TOR ARGS TYPE CHECK ------- */
+  /* ------- END OF ARGS TYPE CHECK ------- */
 
   /* Member functions to fill the dim array on initialization of object */
   template <typename D>
@@ -92,14 +97,6 @@ private:
   void fill_dim(size_t*, D, Rest...);
   /* ------- END OF FUNCS TO FILL DIM ARRAY ------- */
 
-
-  /* Member functions to check type compatibility of operator() arguments */
-  template <typename I>
-  void ind_check(I);
-
-  template <typename I, typename... Rest>
-  void ind_check(I, Rest...);
-  /* ------ END OF FUNCS TO CHECK OPERATOR() ARGS ------ */
 
   /* Member functions to get the mapped 1D index requested by Multidim. indices of operator() */
   template <typename I>
@@ -117,6 +114,16 @@ private:
   template <typename I, typename... Rest>
   void get_mult(I, Rest...);
   /* ------ END OF FUNCS TO GET MAPPED 1D INDEX REQUESTED BY OPERATOR() ------ */
+
+  /* Member functions to check if resize is really needed when resize() is called */
+  template <typename S>
+  bool check_resize(size_t*, S);
+
+  template <typename S, typename... Rest>
+  bool check_resize(size_t*, S, Rest...);
+  /* ------ END OF FUNCS TO CHECK IF RESIZE() SHOULD REALLY MESS WITH *values ----- */
+
+
 };
 
 template <size_t N>
@@ -129,7 +136,7 @@ Tensor<N>::Tensor(Ns... ns) {
   usage = new size_t(1);
 
   // Filling dim array with values for each dimension of tensor
-  dim = new size_t[N];
+  dim = new size_t[N]();
   fill_dim(dim, ns...);
 
   // Allocating storage for tensor values array
@@ -137,14 +144,33 @@ Tensor<N>::Tensor(Ns... ns) {
   for (size_t i = 0; i != N; ++i) {
     nval *= dim[i];
   }
-  values = new double[nval];
+  values = new double[nval]();
 }
 
 template <size_t N>
 bool Tensor<N>::check_range(size_t i) {
-  std::cout << i << "\n";
   if (i < nval) return true;
   throw std::out_of_range("element access denied: index out of range");
+}
+
+template <size_t N>
+int Tensor<N>::size(size_t i) const {
+  if (!nval) throw std::out_of_range("empty Tensor has no size()");
+  if (i > N-1) throw std::out_of_range("argument to Tensor size() exceeded tensor rank"); 
+  return dim[i]; 
+}
+
+template <size_t N>
+void Tensor<N>::clear() {
+  if (usage && *usage > 1) throw std::out_of_range("can't clear() shared Tensor object");
+  if (values) delete[] values;
+  if (dim) delete[] dim;
+  if (usage) delete usage;
+
+  nval = 0;
+  usage = nullptr;
+  dim = nullptr;
+  values = nullptr;
 }
 
 template <size_t N>
@@ -257,30 +283,28 @@ Tensor<N>& Tensor<N>::operator=(Tensor&& rhs) {
 template <size_t N>
 template <typename... As>
 double &Tensor<N>::operator()(As... is) {
+  if (!nval) throw std::out_of_range("trying to access empty Tensor");
   // Checking indices number and types
   if (sizeof...(is) != N) throw std::out_of_range("element access denied: incorrect number of indices for tensor of rank N");
-  ind_check(is...);
+  type_check(is...);
 
-  // Getting the mapped 1D index
+  /*Getting the mapped 1D index
+  * Mapping is according to:
+
+  * \left[\sum_{p=3}^{N}\left(i_p\prod_{k=1}^{p-1}x_k\right)\right] + x_2i_1 + i_2
+
+  * where
+  * i_p are the arguments for the element access operator, that is, 
+  the multidimensional indices (i.e. i_p = i, j, k, ..., for p = 1, 2, 3, ...)
+
+  * x_k are the number of elements in each dimension k
+  * *NOTE: the above formula is NOT in C-style index notation (i.e. indices start at 1 there, not 0).
+  */
+  elind = 0;
   get_ind(is...);
   // Check if it is in range of values array
   check_range(elind);
-  size_t temp = elind;
-  elind = 0;
-  return *(values+temp);
-}
-
-template <size_t N>
-template <typename I>
-void Tensor<N>::ind_check(I i) {
-  if (!std::is_convertible<I, size_t>::value) throw std::out_of_range("element access denied: non-integral type passed as index");
-}
-
-template <size_t N>
-template <typename I, typename... Rest>
-void Tensor<N>::ind_check(I i, Rest... is) {
-  if (!std::is_convertible<I, size_t>::value) throw std::out_of_range("element access denied: non-integral type passed as index");
-  ind_check(is...);
+  return *(values+elind);
 }
 
 template <size_t N>
@@ -312,6 +336,7 @@ void Tensor<N>::get_mult(I i) {
   elind += temp;
 }
 
+// Get the multiplicative part of the mapping
 template <size_t N>
 template <typename I, typename... Rest>
 void Tensor<N>::get_mult(I i, Rest... r) {
@@ -321,6 +346,52 @@ void Tensor<N>::get_mult(I i, Rest... r) {
   temp *= i;
   elind += temp;
   get_mult(r...);
+}
+
+template <size_t N>
+template <typename... Szs>
+Tensor<N>& Tensor<N>::resize(Szs... sz) {
+  if (usage && *usage > 1) throw std::out_of_range("can't resize a shared tensor");
+  if (sizeof...(sz) != N) throw std::out_of_range("number of arguments to resize() differs from rank tensor");
+  type_check(sz...);
+  if (usage) {    
+    if (check_resize(dim, sz...)) {
+      if (values) delete[] values;
+
+      fill_dim(dim, sz...);
+
+      nval = 1;
+      for (size_t i = 0; i != N; ++i)
+        nval *= dim[i];
+
+      values = new double[nval]();
+    }
+  } else {
+    usage = new size_t(1);
+    dim = new size_t[N];
+    fill_dim(dim, sz...);
+
+    nval = 1;
+      for (size_t i = 0; i != N; ++i)
+        nval *= dim[i];
+
+      values = new double[nval]();
+  }
+}
+
+template <size_t N>
+template <typename S>
+bool Tensor<N>::check_resize(size_t *d, S sz) {
+  if (*d != sz) return true;
+  return false;
+}
+
+template <size_t N>
+template <typename S, typename... Rest>
+bool Tensor<N>::check_resize(size_t *d, S sz, Rest... r) {
+  if (*d != sz) return true;
+  if (check_resize(d+1, r...)) return true;
+  return false;
 }
 
 #endif
